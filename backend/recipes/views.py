@@ -15,7 +15,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipe.objects.all().order_by('id')
+    queryset = Recipe.objects.all().order_by('-pub_date')
     serializer_class = RecipeSerializer
     permission_classes = [AllowAny]
     pagination_class = CustomPagination
@@ -30,27 +30,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
             return ShortRecipeSerializer
         return super().get_serializer_class()
 
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
+
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
         if user.is_authenticated:
             if 'is_favorited' in self.request.query_params and self.request.query_params['is_favorited'] == '1':
-                queryset = queryset.filter(favorited__user=user)
+                queryset = queryset.filter(favorited_by__user=user)
             if 'is_in_shopping_cart' in self.request.query_params and self.request.query_params['is_in_shopping_cart'] == '1':
-                queryset = queryset.filter(shopping_cart__user=user)
+                queryset = queryset.filter(in_shopping_cart__user=user)
         if 'author' in self.request.query_params:
             queryset = queryset.filter(author__id=self.request.query_params['author'])
         if 'tags' in self.request.query_params:
             tags = self.request.query_params.getlist('tags')
             queryset = queryset.filter(tags__slug__in=tags).distinct()
         return queryset
-
-    @action(detail=True, methods=['get'], url_path='get-link')
-    def get_link(self, request, pk=None):
-        recipe = self.get_object()
-        logger.debug(f"Generating link for recipe {recipe.id}")
-        link = f"{request.scheme}://{request.get_host()}/api/recipes/{recipe.id}/"
-        return Response({'link': link}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post', 'delete'], url_path='favorite')
     def favorite(self, request, pk=None):
@@ -102,11 +98,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if not user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
         ingredients = RecipeIngredient.objects.filter(
-            recipe__shopping_cart__user=user
+            recipe__in_shopping_cart__user=user
         ).values(
             'ingredient__name', 'ingredient__measurement_unit'
         ).annotate(total_amount=Sum('amount')).order_by('ingredient__name')
         buffer = io.StringIO()
+        buffer.write("Список покупок:\n\n")
         for item in ingredients:
             buffer.write(
                 f"{item['ingredient__name']} ({item['ingredient__measurement_unit']}): {item['total_amount']}\n"
@@ -121,9 +118,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
 
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Ingredient.objects.all().order_by('id')
+    queryset = Ingredient.objects.all().order_by('name')
     serializer_class = IngredientSerializer
     permission_classes = [AllowAny]
+    pagination_class = None
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -134,6 +132,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class TagViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Tag.objects.all().order_by('id')
+    queryset = Tag.objects.all()
     serializer_class = TagSerializer
     permission_classes = [AllowAny]
+    pagination_class = None

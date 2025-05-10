@@ -58,19 +58,22 @@ class RecipeSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
-        return obj.favorited.filter(user=request.user).exists()
+        return obj.favorited_by.filter(user=request.user).exists()
 
     def get_is_in_shopping_cart(self, obj):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
-        return obj.shopping_cart.filter(user=request.user).exists()
+        return obj.in_shopping_cart.filter(user=request.user).exists()
 
     def create(self, validated_data):
-        ingredients_data = validated_data.pop('recipe_ingredients')
-        tags_data = validated_data.pop('tags', [])
+        ingredients_data = validated_data.pop('recipe_ingredients', [])
+        tags_data = self.context['request'].data.get('tags', [])
         recipe = Recipe.objects.create(**validated_data)
-        recipe.tags.set(tags_data)
+        
+        if tags_data:
+            recipe.tags.set(tags_data)
+        
         for ingredient_data in ingredients_data:
             RecipeIngredient.objects.create(
                 recipe=recipe,
@@ -81,10 +84,13 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         ingredients_data = validated_data.pop('recipe_ingredients', None)
-        tags_data = validated_data.pop('tags', None)
+        tags_data = self.context['request'].data.get('tags')
+        
         instance = super().update(instance, validated_data)
+        
         if tags_data is not None:
             instance.tags.set(tags_data)
+        
         if ingredients_data is not None:
             instance.recipe_ingredients.all().delete()
             for ingredient_data in ingredients_data:
