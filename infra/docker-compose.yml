@@ -1,11 +1,38 @@
 version: '3.3'
+
 services:
+  db:
+    image: postgres:13
+    container_name: foodgram-db
+    environment:
+      POSTGRES_USER: foodgram
+      POSTGRES_PASSWORD: foodgram
+      POSTGRES_DB: foodgram
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+
+  backend:
+    container_name: foodgram-backend
+    build: ../backend  # Указываем путь к папке с Dockerfile бэкенда
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --no-input &&
+             gunicorn foodgram.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - ../backend:/app
+      - static_volume:/app/static
+      - media_volume:/app/media
+    env_file:
+      - .env  # Файл с переменными (например, SECRET_KEY)
+    depends_on:
+      - db
 
   frontend:
     container_name: foodgram-front
     build: ../frontend
     volumes:
-      - ../frontend/:/app/result_build/
+      - ../frontend:/app/result_build/
+
   nginx:
     container_name: foodgram-proxy
     image: nginx:1.25.4-alpine
@@ -14,4 +41,13 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ../frontend/build:/usr/share/nginx/html/
-      - ../docs/:/usr/share/nginx/html/api/docs/
+      - static_volume:/usr/share/nginx/html/static/  # Статика Django
+      - media_volume:/usr/share/nginx/html/media/    # Медиа Django
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
