@@ -39,7 +39,11 @@ class Recipe(models.Model):
         related_name='recipes'
     )
     name = models.CharField(max_length=200)
-    image = models.ImageField(upload_to='recipes/')
+    image = models.ImageField(
+        upload_to='recipes/',
+        null=True,
+        blank=True
+    )
     text = models.TextField()
     cooking_time = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)]
