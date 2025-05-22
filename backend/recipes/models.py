@@ -1,34 +1,31 @@
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.utils.translation import gettext_lazy as _
 from users.models import User
+
+MIN_COOKING_TIME = 1
+MAX_NAME_LENGTH = 256
+MAX_UNIT_LENGTH = 20
 
 
 class Ingredient(models.Model):
     """Модель ингредиента."""
-    name = models.CharField(max_length=200, unique=True)
-    measurement_unit = models.CharField(max_length=20)
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    measurement_unit = models.CharField(max_length=MAX_UNIT_LENGTH)
 
     class Meta:
         verbose_name = 'Ингредиент'
         verbose_name_plural = 'Ингредиенты'
-        ordering = ['name']
+        ordering = ('name',)
+        constraints = [
+            models.UniqueConstraint(
+                fields=('name', 'measurement_unit'),
+                name='unique_ingredient_unit'
+            )
+        ]
 
     def __str__(self):
         return f'{self.name} ({self.measurement_unit})'
-
-
-class Tag(models.Model):
-    """Модель тега рецепта."""
-    name = models.CharField(max_length=50, unique=True)
-    color = models.CharField(max_length=7, unique=True)
-    slug = models.SlugField(max_length=50, unique=True)
-
-    class Meta:
-        verbose_name = 'Тег'
-        verbose_name_plural = 'Теги'
-
-    def __str__(self):
-        return self.name
 
 
 class Recipe(models.Model):
@@ -38,30 +35,31 @@ class Recipe(models.Model):
         on_delete=models.CASCADE,
         related_name='recipes'
     )
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=MAX_NAME_LENGTH)
     image = models.ImageField(
         upload_to='recipes/',
         null=True,
         blank=True
     )
-    text = models.TextField()
-    cooking_time = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1)]
+    text = models.TextField(_('Описание'))
+    cooking_time = models.PositiveIntegerField(
+        validators=[MinValueValidator(MIN_COOKING_TIME)],
+        verbose_name='Время приготовления (в минутах)'
     )
     ingredients = models.ManyToManyField(
         Ingredient,
-        through='RecipeIngredient'
+        through='RecipeIngredient',
+        related_name='recipes'
     )
-    tags = models.ManyToManyField(Tag)
     pub_date = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
-        ordering = ['-pub_date']
+        ordering = ('-pub_date',)
         constraints = [
             models.UniqueConstraint(
-                fields=['author', 'name'],
+                fields=('author', 'name'),
                 name='unique_author_recipe'
             )
         ]
@@ -71,7 +69,7 @@ class Recipe(models.Model):
 
 
 class RecipeIngredient(models.Model):
-    """Промежуточная модель связи рецепта и ингредиента."""
+    """Связь ингредиентов и рецептов с количеством."""
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
@@ -82,14 +80,16 @@ class RecipeIngredient(models.Model):
         on_delete=models.CASCADE,
         related_name='ingredient_recipes'
     )
-    amount = models.PositiveSmallIntegerField(
+    amount = models.PositiveIntegerField(
         validators=[MinValueValidator(1)]
     )
 
     class Meta:
+        verbose_name = 'Ингредиент в рецепте'
+        verbose_name_plural = 'Ингредиенты в рецептах'
         constraints = [
             models.UniqueConstraint(
-                fields=['recipe', 'ingredient'],
+                fields=('recipe', 'ingredient'),
                 name='unique_ingredient_in_recipe'
             )
         ]
@@ -98,24 +98,23 @@ class RecipeIngredient(models.Model):
         return f'{self.ingredient} - {self.amount}'
 
 
-class Favorite(models.Model):
-    """Модель избранных рецептов."""
+class UserRecipeRelation(models.Model):
+    """Базовая модель для избранного и корзины."""
     user = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
-        related_name='favorites'
+        on_delete=models.CASCADE
     )
     recipe = models.ForeignKey(
         Recipe,
-        on_delete=models.CASCADE,
-        related_name='favorited_by'
+        on_delete=models.CASCADE
     )
 
     class Meta:
+        abstract = True
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'recipe'],
-                name='unique_favorite'
+                fields=('user', 'recipe'),
+                name='%(class)s_unique'
             )
         ]
 
@@ -123,42 +122,42 @@ class Favorite(models.Model):
         return f'{self.user} -> {self.recipe}'
 
 
-class ShoppingCart(models.Model):
-    """Модель списка покупок."""
-    user = models.ForeignKey(
-        User,
+class Favorite(UserRecipeRelation):
+    """Модель избранного."""
+    recipe = models.ForeignKey(
+        Recipe,
         on_delete=models.CASCADE,
-        related_name='shopping_cart'
+        related_name='favorited'
     )
+
+    class Meta(UserRecipeRelation.Meta):
+        verbose_name = 'Избранное'
+        verbose_name_plural = 'Избранное'
+
+
+class ShoppingCart(UserRecipeRelation):
+    """Модель корзины покупок."""
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
         related_name='in_shopping_cart'
     )
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user', 'recipe'],
-                name='unique_shopping_cart'
-            )
-        ]
+    class Meta(UserRecipeRelation.Meta):
+        verbose_name = 'Корзина'
+        verbose_name_plural = 'Корзина'
 
-    def __str__(self):
-        return f'{self.user} - {self.recipe}'
-    
 
 class Subscription(models.Model):
-    """Модель подписки пользователей."""
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='follower'
+        related_name='subscriptions',
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='following'
+        related_name='subscribers',
     )
 
     class Meta:

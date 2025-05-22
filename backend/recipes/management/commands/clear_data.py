@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from recipes.models import (
-    Recipe, Tag, Subscription,
+    Recipe, Subscription,
     ShoppingCart, Favorite, RecipeIngredient
 )
 
@@ -19,7 +19,6 @@ class Command(BaseCommand):
         Subscription.objects.all().delete()
         RecipeIngredient.objects.all().delete()
         Recipe.objects.all().delete()
-        Tag.objects.all().delete()
         User.objects.exclude(is_superuser=True).delete()
 
         self.stdout.write(self.style.SUCCESS('✅ Всё очищено, кроме ингредиентов'))

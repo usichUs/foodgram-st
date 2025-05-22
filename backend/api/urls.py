@@ -1,14 +1,13 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from recipes.views import RecipeViewSet, IngredientViewSet, TagViewSet
-from users.views import UserViewSet
+from api.views.recipes import RecipeViewSet, IngredientViewSet
+from api.views.users import UserViewSet
 
 recipe_link = RecipeViewSet.as_view({'get': 'get_link'})
 
 router = DefaultRouter()
 router.register('recipes', RecipeViewSet, basename='recipes')
 router.register('ingredients', IngredientViewSet, basename='ingredients')
-router.register('tags', TagViewSet, basename='tags')
 router.register('users', UserViewSet, basename='users')
 
 urlpatterns = [

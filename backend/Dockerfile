@@ -1,17 +1,22 @@
-# Используем официальный образ Python
-FROM python:3.9-slim
+FROM python:3.11
 
-# Рабочая директория
 WORKDIR /app
 
-# Копируем зависимости
-COPY requirements.txt .
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    libjpeg-dev \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем зависимости
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем остальные файлы
 COPY . .
 
-# Команда для запуска сервера
-CMD ["gunicorn", "foodgram.wsgi:application", "--bind", "0.0.0.0:8000"]
+EXPOSE 8000
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+CMD ["/entrypoint.sh"]
+
