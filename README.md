@@ -23,7 +23,7 @@
 1. **Клонируйте репозиторий и перейдите в папку проекта:**
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/usichUs/foodgram-st.git
 cd foodgram-st/infra
 ```
 
