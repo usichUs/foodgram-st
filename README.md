@@ -42,7 +42,8 @@ DEBUG=False
 
 3. **Запустите проект в Docker:**
 
-```docker-compose up --build
+```
+docker-compose up --build
 
 ```
 
@@ -52,13 +53,15 @@ DEBUG=False
 - Установите зависимости
 - Загрузите json фикстуры
 
-```python manage.py import_ingredient
+```
+python manage.py import_ingredient
 
 ```
 
 - Запустите сервер
 
-```python manage.py runserver
+```
+python manage.py runserver
 
 ```
 
