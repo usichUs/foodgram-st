@@ -87,6 +87,6 @@ python manage.py runserver
 
 5. **Доступ к сервисам:**
 
-[Frontend:](http://localhost)
-[Документация API](http://localhost/api/docs/)
-[Панель админа](http://127.0.0.1:8000/admin)
+- [Frontend](http://localhost)
+- [Документация API](http://localhost/api/docs/)
+- [Админ-панель](http://127.0.0.1:8000/admin)
