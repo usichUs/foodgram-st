@@ -37,35 +37,56 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 SECRET_KEY=your_secret_key
 DEBUG=False
-
 ```
 
 3. **Запустите проект в Docker:**
 
 ```
 docker-compose up --build
-
 ```
 
-4. **В папке бекэнд для запуска АПИ**
+4. **В папке бекэнд для запуска АПИ(без Докера)**
+
+- Создайте виртуальное окружение
+
+```
+python -m venv venv
+```
 
 - Активируйте виртуальное окружение
+
+Windows
+
+```
+venv\Scripts\activate
+```
+
+MacOS/Linux
+
+```
+source venv/bin/activate
+```
+
 - Установите зависимости
+
+```
+pip install -r requirements.txt
+```
+
 - Загрузите json фикстуры
 
 ```
 python manage.py import_ingredient
-
 ```
 
 - Запустите сервер
 
 ```
 python manage.py runserver
-
 ```
 
 5. **Доступ к сервисам:**
 
 [Frontend:](http://localhost)
 [Документация API](http://localhost/api/docs/)
+[Панель админа](http://127.0.0.1:8000/admin)
