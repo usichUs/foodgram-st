@@ -10,8 +10,16 @@ MAX_UNIT_LENGTH = 20
 
 class Ingredient(models.Model):
     """Модель ингредиента."""
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
-    measurement_unit = models.CharField(max_length=MAX_UNIT_LENGTH)
+    name = models.CharField(
+        max_length=MAX_NAME_LENGTH,
+        verbose_name='Название',
+        help_text='Введите название ингредиента'
+    )
+    measurement_unit = models.CharField(
+        max_length=MAX_UNIT_LENGTH,
+        verbose_name='Единица измерения',
+        help_text='Введите единицу измерения'
+    )
 
     class Meta:
         verbose_name = 'Ингредиент'
@@ -33,25 +41,42 @@ class Recipe(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='recipes'
+        related_name='recipes',
+        verbose_name='Автор',
+        help_text='Пользователь, создавший рецепт'
     )
-    name = models.CharField(max_length=MAX_NAME_LENGTH)
+    name = models.CharField(
+        max_length=MAX_NAME_LENGTH,
+        verbose_name='Название',
+        help_text='Название рецепта'
+    )
     image = models.ImageField(
         upload_to='recipes/',
         null=True,
-        blank=True
+        blank=True,
+        verbose_name='Изображение',
+        help_text='Картинка рецепта'
     )
-    text = models.TextField(_('Описание'))
+    text = models.TextField(
+        verbose_name='Описание',
+        help_text='Как приготовить рецепт'
+    )
     cooking_time = models.PositiveIntegerField(
         validators=[MinValueValidator(MIN_COOKING_TIME)],
-        verbose_name='Время приготовления (в минутах)'
+        verbose_name='Время приготовления (в минутах)',
+        help_text='Введите время приготовления'
     )
     ingredients = models.ManyToManyField(
         Ingredient,
         through='RecipeIngredient',
-        related_name='recipes'
+        related_name='recipes',
+        verbose_name='Ингредиенты',
+        help_text='Ингредиенты, входящие в состав'
     )
-    pub_date = models.DateTimeField(auto_now_add=True)
+    pub_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата публикации'
+    )
 
     class Meta:
         verbose_name = 'Рецепт'

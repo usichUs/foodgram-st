@@ -10,15 +10,17 @@ class UserSerializer(DjoserUserSerializer):
     is_subscribed = serializers.SerializerMethodField()
 
     class Meta(DjoserUserSerializer.Meta):
-                fields = [ 
-                    'email', 
-                    'id', 
-                    'username', 
-                    'first_name', 
-                    'last_name', 
-                    'is_subscribed', 
-                    'avatar', 
-                ]
+        model = User
+        fields = [
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'is_subscribed',
+            'avatar',
+        ]
+        read_only_fields = fields
 
     def get_is_subscribed(self, user):
         request = self.context.get('request')
@@ -29,24 +31,21 @@ class UserSerializer(DjoserUserSerializer):
 
 class SubscriptionUserSerializer(UserSerializer):
     recipes = serializers.SerializerMethodField()
-    recipes_count = serializers.SerializerMethodField()
+    recipes_count = serializers.IntegerField(source='recipes.count', read_only=True)
 
     class Meta(UserSerializer.Meta):
-                fields = ( 
-                    'id', 'email', 'username', 
-                    'first_name', 'last_name', 
-                    'is_subscribed', 'avatar', 
-                    'recipes', 'recipes_count' 
-                )
+        fields = (
+            'id', 'email', 'username',
+            'first_name', 'last_name',
+            'is_subscribed', 'avatar',
+            'recipes', 'recipes_count'
+        )
 
     def get_recipes(self, user):
         from api.serializers.recipes import ShortRecipeSerializer
         request = self.context.get('request')
         recipes_limit = request.query_params.get('recipes_limit')
         recipes = user.recipes.all()
-        if recipes_limit and recipes_limit.isdigit():
-            recipes = recipes[:int(recipes_limit)]
+        if recipes_limit and recipes_limit.strip().isdigit():
+            recipes = recipes[:int(recipes_limit.strip())]
         return ShortRecipeSerializer(recipes, many=True, context={'request': request}).data
-
-    def get_recipes_count(self, user):
-        return user.recipes.count()

@@ -27,16 +27,11 @@ class RecipeIngredientReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecipeIngredient
         fields = ('id', 'name', 'measurement_unit', 'amount')
-
+        read_only_fields = fields
 
 class IngredientAmountSerializer(serializers.Serializer):
     id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all())
     amount = serializers.IntegerField(min_value=1)
-
-    def validate_amount(self, value):
-        if value < 1:
-            raise serializers.ValidationError("Количество должно быть больше 0")
-        return value
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -55,20 +50,17 @@ class RecipeSerializer(serializers.ModelSerializer):
         )
 
     def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['author'] = UserSerializer(instance.author, context=self.context).data
+        representation['ingredients'] = RecipeIngredientReadSerializer(
+            instance.recipe_ingredients.all(), many=True
+        ).data
         request = self.context.get('request')
-        return {
-            'id': instance.id,
-            'author': UserSerializer(instance.author, context=self.context).data,
-            'ingredients': RecipeIngredientReadSerializer(
-                instance.recipe_ingredients.all(), many=True
-            ).data,
-            'is_favorited': self.get_is_favorited(instance),
-            'is_in_shopping_cart': self.get_is_in_shopping_cart(instance),
-            'name': instance.name,
-            'image': request.build_absolute_uri(instance.image.url) if instance.image and request else None,
-            'text': instance.text,
-            'cooking_time': instance.cooking_time
-        }
+        representation['image'] = (
+            request.build_absolute_uri(instance.image.url)
+            if instance.image and request else None
+        )
+        return representation
 
     def validate_ingredients(self, value):
         if not value:
@@ -92,32 +84,26 @@ class RecipeSerializer(serializers.ModelSerializer):
         return user.is_authenticated and obj.in_shopping_cart.filter(user=user).exists()
 
     def create_ingredients(self, recipe, ingredients):
-        RecipeIngredient.objects.bulk_create([
+        RecipeIngredient.objects.bulk_create(
             RecipeIngredient(
                 recipe=recipe,
                 ingredient=item['id'],
                 amount=item['amount']
             ) for item in ingredients
-        ])
+        )
 
     def create(self, validated_data):
         ingredients = validated_data.pop('ingredients')
-        recipe = Recipe.objects.create(**validated_data)
+        recipe = super().create(validated_data)
         self.create_ingredients(recipe, ingredients)
         return recipe
 
     def update(self, instance, validated_data):
-        ingredients = validated_data.pop('ingredients', None)
-
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-
-        if ingredients is not None:
-            instance.recipe_ingredients.all().delete()
-            self.create_ingredients(instance, ingredients)
-
-        return instance
+        ingredients = validated_data.pop('ingredients')
+        recipe = super().update(instance, validated_data)
+        recipe.recipe_ingredients.all().delete()
+        self.create_ingredients(recipe, ingredients)
+        return recipe
 
     def validate(self, attrs):
         if self.instance and self.context['request'].method in ('PUT', 'PATCH'):
@@ -126,7 +112,3 @@ class RecipeSerializer(serializers.ModelSerializer):
                     'ingredients': 'Нужен хотя бы один ингредиент.'
                 })
         return super().validate(attrs)
-
-
-class ShortLinkSerializer(serializers.Serializer):
-    short_link = serializers.CharField(source='short-link')

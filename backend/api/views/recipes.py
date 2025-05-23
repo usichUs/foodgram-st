@@ -17,7 +17,7 @@ from recipes.models import (
 )
 from api.serializers.recipes import (
     RecipeSerializer, ShortRecipeSerializer,
-    IngredientSerializer, ShortLinkSerializer
+    IngredientSerializer
 )
 from api.pagination import CustomPagination
 from api.filters import RecipeFilter
@@ -81,12 +81,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         return queryset
 
-    def _handle_post_delete_action(self, request, recipe, model, error_text):
+    def _handle_post_delete_action(self, request, recipe, model):
         if request.method == 'POST':
             obj, created = model.objects.get_or_create(user=request.user, recipe=recipe)
             if not created:
                 return Response(
-                    {"errors": f"{error_text} уже добавлен (id={recipe.id})."},
+                    {"errors": f"Рецепт «{recipe.name}» уже добавлен (id={recipe.id})."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             serializer = ShortRecipeSerializer(recipe, context={'request': request})
@@ -95,7 +95,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         obj = model.objects.filter(user=request.user, recipe=recipe).first()
         if not obj:
             return Response(
-                {"errors": f"{error_text} не найден для рецепта id={recipe.id}."},
+                {"errors": f"Рецепт «{recipe.name}» уже добавлен (id={recipe.id})."},
                 status=status.HTTP_400_BAD_REQUEST
             )
         obj.delete()
@@ -105,14 +105,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def favorite(self, request, pk=None):
         recipe = self.get_object()
         return self._handle_post_delete_action(
-            request, recipe, Favorite, "Рецепт"
+            request, recipe, Favorite
         )
 
     @action(detail=True, methods=['post', 'delete'], permission_classes=[IsAuthenticated])
     def shopping_cart(self, request, pk=None):
         recipe = self.get_object()
         return self._handle_post_delete_action(
-            request, recipe, ShoppingCart, "Рецепт"
+            request, recipe, ShoppingCart
         )
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
@@ -123,7 +123,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
         ).values(
             'ingredient__name',
             'ingredient__measurement_unit'
-        ).annotate(total=Sum('amount'))
+        ).annotate(total=Sum('amount')).order_by('ingredient__name')
+
 
         recipes = Recipe.objects.filter(in_shopping_cart__user=user)
 
@@ -142,17 +143,16 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         content = '\n'.join(lines)
         return FileResponse(
-            content.encode(),
+            content,
             as_attachment=True,
             filename='shopping_list.txt'
         )
 
-    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    @action(detail=True, methods=['get'], url_path='get-link', permission_classes=[AllowAny])
     def get_link(self, request, pk=None):
         recipe = get_object_or_404(Recipe, pk=pk)
 
-        short_code = f"3d{recipe.id}"
-        short_path = reverse('recipes:short-link-redirect', kwargs={'code': short_code})
+        short_path = reverse('recipes:short-link-redirect', kwargs={'recipe_id': recipe.pk})
         full_url = request.build_absolute_uri(short_path)
 
         return Response({'short-link': full_url}, status=status.HTTP_200_OK)
