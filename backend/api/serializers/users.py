@@ -40,6 +40,7 @@ class SubscriptionUserSerializer(UserSerializer):
             'is_subscribed', 'avatar',
             'recipes', 'recipes_count'
         )
+        read_only_fields = fields
 
     def get_recipes(self, user):
         from api.serializers.recipes import ShortRecipeSerializer

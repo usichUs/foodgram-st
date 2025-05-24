@@ -43,7 +43,7 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipe.objects.all().order_by('-pub_date')
+    queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     permission_classes = [IsAuthorOrReadOnly]
     pagination_class = CustomPagination
@@ -82,11 +82,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return queryset
 
     def _handle_post_delete_action(self, request, recipe, model):
+        label_map = {
+            'Favorite': 'в избранное',
+            'ShoppingCart': 'в корзину покупок'
+        }
+        label = label_map.get(model.__name__, 'в список')
+
         if request.method == 'POST':
             obj, created = model.objects.get_or_create(user=request.user, recipe=recipe)
             if not created:
                 return Response(
-                    {"errors": f"Рецепт «{recipe.name}» уже добавлен (id={recipe.id})."},
+                    {"errors": f"Рецепт «{recipe.name}» уже добавлен {label} (id={recipe.id})."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             serializer = ShortRecipeSerializer(recipe, context={'request': request})
@@ -95,7 +101,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         obj = model.objects.filter(user=request.user, recipe=recipe).first()
         if not obj:
             return Response(
-                {"errors": f"Рецепт «{recipe.name}» уже добавлен (id={recipe.id})."},
+                {"errors": f"Рецепт «{recipe.name}» не найден {label} (id={recipe.id})."},
                 status=status.HTTP_400_BAD_REQUEST
             )
         obj.delete()
@@ -152,7 +158,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_link(self, request, pk=None):
         recipe = get_object_or_404(Recipe, pk=pk)
 
-        short_path = reverse('recipes:short-link-redirect', kwargs={'recipe_id': recipe.pk})
+        short_path = reverse('recipes:short-link-redirect', kwargs={'recipe_id': pk})
         full_url = request.build_absolute_uri(short_path)
 
         return Response({'short-link': full_url}, status=status.HTTP_200_OK)

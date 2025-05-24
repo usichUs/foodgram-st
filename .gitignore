@@ -2,6 +2,8 @@ frontend/node_modules
 infra/frontend/build
 .env
 
+backend/recipes/management/commands/clear_data.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.safestring import mark_safe
 from django.utils.html import format_html
-from django.utils.translation import gettext_lazy as _
+
 from recipes.models import Subscription
 from .models import User
 
@@ -24,40 +24,40 @@ class UserAdmin(BaseUserAdmin):
     list_filter = ('is_staff', 'is_superuser', 'is_active')
     ordering = ('username',)
 
-    @admin.display(description=_('ФИО'))
+    @admin.display(description='ФИО')
     def full_name(self, obj):
         return f"{obj.first_name} {obj.last_name}"
 
-    @admin.display(description=_('Аватар'))
+    @admin.display(description='Аватар')
     @mark_safe
     def avatar_tag(self, obj):
         if obj.avatar:
             return format_html('<img src="{}" width="40" height="40" style="border-radius:50%;" />', obj.avatar.url)
         return "—"
 
-    @admin.display(description=_('Рецептов'))
+    @admin.display(description='Рецептов')
     def recipe_count(self, obj):
         return obj.recipes.count()
 
-    @admin.display(description=_('Подписок'))
+    @admin.display(description='Подписок')
     def subscriptions_count(self, obj):
-        return Subscription.objects.filter(user=obj).count()
+        return obj.subscriptions.count()  # ← через related_name
 
-    @admin.display(description=_('Подписчиков'))
+    @admin.display(description='Подписчиков')
     def subscribers_count(self, obj):
-        return Subscription.objects.filter(author=obj).count()
+        return obj.subscribers.count()  # ← через related_name
 
     fieldsets = (
         (None, {
             'fields': ('email', 'username', 'password')
         }),
-        (_('Персональная информация'), {
+        ('Персональная информация', {
             'fields': ('first_name', 'last_name', 'avatar')
         }),
-        (_('Права доступа'), {
+        ('Права доступа', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')
         }),
-        (_('Даты'), {
+        ('Даты', {
             'fields': ('last_login', 'date_joined')
         }),
     )

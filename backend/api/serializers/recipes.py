@@ -100,10 +100,10 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         ingredients = validated_data.pop('ingredients')
-        recipe = super().update(instance, validated_data)
-        recipe.recipe_ingredients.all().delete()
-        self.create_ingredients(recipe, ingredients)
-        return recipe
+        super().update(instance, validated_data)
+        instance.recipe_ingredients.all().delete()
+        self.create_ingredients(instance, ingredients)
+        return instance
 
     def validate(self, attrs):
         if self.instance and self.context['request'].method in ('PUT', 'PATCH'):

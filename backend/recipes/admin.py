@@ -12,7 +12,7 @@ class RecipeIngredientInline(admin.TabularInline):
     extra = 1
 
 
-class CookingTimeFilter(SimpleListFilter):
+class CookingTimeFilter(admin.SimpleListFilter):
     title = 'Время готовки'
     parameter_name = 'cooking_time_range'
 
@@ -21,27 +21,23 @@ class CookingTimeFilter(SimpleListFilter):
         if len(times) < 3:
             return ()
 
-        n = times[int(len(times) * 0.33)]
-        m = times[int(len(times) * 0.66)]
+        self.n = times[int(len(times) * 0.33)]
+        self.m = times[int(len(times) * 0.66)]
 
         return [
-            (f'lt_{n}', f'Меньше {n} мин ({Recipe.objects.filter(cooking_time__lt=n).count()})'),
-            (f'range_{n}_{m}', f'От {n} до {m} мин ({Recipe.objects.filter(cooking_time__gte=n, cooking_time__lte=m).count()})'),
-            (f'gt_{m}', f'Больше {m} мин ({Recipe.objects.filter(cooking_time__gt=m).count()})'),
+            ('lt', f'Меньше {self.n} мин ({Recipe.objects.filter(cooking_time__lt=self.n).count()})'),
+            ('range', f'От {self.n} до {self.m} мин ({Recipe.objects.filter(cooking_time__gte=self.n, cooking_time__lte=self.m).count()})'),
+            ('gt', f'Больше {self.m} мин ({Recipe.objects.filter(cooking_time__gt=self.m).count()})'),
         ]
 
     def queryset(self, request, queryset):
         value = self.value()
-        if value:
-            if value.startswith('lt_'):
-                limit = int(value.split('_')[1])
-                return queryset.filter(cooking_time__lt=limit)
-            if value.startswith('range_'):
-                n, m = map(int, value.split('_')[1:])
-                return queryset.filter(cooking_time__gte=n, cooking_time__lte=m)
-            if value.startswith('gt_'):
-                limit = int(value.split('_')[1])
-                return queryset.filter(cooking_time__gt=limit)
+        if value == 'lt':
+            return queryset.filter(cooking_time__lt=self.n)
+        if value == 'range':
+            return queryset.filter(cooking_time__gte=self.n, cooking_time__lte=self.m)
+        if value == 'gt':
+            return queryset.filter(cooking_time__gt=self.m)
         return queryset
 
 
@@ -62,11 +58,10 @@ class RecipeAdmin(admin.ModelAdmin):
 
     @admin.display(description='Ингредиенты')
     def show_ingredients(self, recipe):
-        ingredients = RecipeIngredient.objects.filter(recipe=recipe)
-        return ', '.join([
-            f'{ing.ingredient.name} ({ing.amount}{ing.ingredient.measurement_unit})'
-            for ing in ingredients
-        ])
+        return format_html('<br>'.join(
+            f'{ri.ingredient.name} ({ri.amount}{ri.ingredient.measurement_unit})'
+            for ri in recipe.recipe_ingredients.all()
+        ))
 
     @admin.display(description='Картинка')
     def show_image(self, recipe):
@@ -101,6 +96,6 @@ class IngredientAdmin(admin.ModelAdmin):
     search_fields = ('name', 'measurement_unit')
     list_filter = ('measurement_unit', HasRecipesFilter)
 
-    @admin.display(description='Кол-во рецептов')
+    @admin.display(description='Рецептов')
     def recipes_count(self, ingredient):
-        return ingredient.recipe.count()
+        return ingredient.ingredient_recipes.count()
